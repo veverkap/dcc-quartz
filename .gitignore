@@ -1,0 +1,22 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+private_books/*
+!private_books/.gitkeep
+extracted_series_chapters/*
+!extracted_series_chapters/.gitkeep
+quartz-lore-vault/*
+!quartz-lore-vault/.gitkeep
+*.db
+*.db-shm
+*.db-wal
+.env
+tmp/
