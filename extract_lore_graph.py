@@ -75,8 +75,6 @@ def save_entity_file(content_dir, entity_block):
     final_path = os.path.join(content_dir, target_folder, safe_filename)
     
     # --- DEFENSIVE FRONTMATTER ESCAPING ---
-    # Escape any existing double quotes in the title text, then wrap the entire frontmatter string 
-    # to safeguard against unquoted colons (e.g., "title: Dungeon Crawler World: Earth")
     safe_title_yaml = entity_name.replace('"', '\\"')
     
     # Strip whatever loose frontmatter the LLM returned, and rebuild a pristine, sanitized frontmatter block
@@ -100,6 +98,16 @@ def save_entity_file(content_dir, entity_block):
             f.write(sanitized_entity_block.strip())
             
     print(f"   [+] Synced: {target_folder}/{safe_filename}")
+
+    # =====================================================================
+    # 🔌 INTEGRATION PLUG: HOOKING AUDIT VECTORS INTO PIPELINE
+    # =====================================================================
+    # Capture the parsed metadata and push it straight into your local flat-file database
+    save_extracted_entity(
+        entity_title=entity_name,
+        categories=[target_folder.capitalize()], # Tracks the high-level taxonomy category map
+        extracted_text=clean_body_only
+    )
 
 # --- 3. PROCESS CHAPTER TEXT ---
 def process_chapter_text(client, model_id, chapter_text, content_dir):
@@ -244,13 +252,10 @@ def main():
             file_id = os.path.relpath(file_path, CHAPTERS_SRC_DIR)
             filename_lower = os.path.basename(file_path).lower()
             
-            # Detect what book folder we are currently traversing
-            # e.g., '1_Dungeon_Crawler_Carl_-_Matt_Dinniman_2020'
             path_parts = file_id.split(os.sep)
             book_folder = path_parts[0] if len(path_parts) > 1 else None
             
             # --- BOOK BOUNDARY DETECTOR ---
-            # If we switch to a new book folder, run reconciliation on the previous book's data
             if current_book_folder and book_folder != current_book_folder:
                 print(f"\n[🏁] Reached edge boundary for: {current_book_folder}")
                 reconcile_book_boundary(client, TARGET_MODEL, QUARTZ_WORKSPACE_DIR, "characters")
@@ -267,7 +272,6 @@ def main():
                 processed_files.add(file_id)
                 continue
                 
-            
             with open(file_path, 'r', encoding='utf-8') as f:
                 chapter_content = f.read()
                 
@@ -282,7 +286,6 @@ def main():
             processed_files.add(file_id)
             
         # --- FINAL CLOSING BOUNDARY ---
-        # Run reconciliation one last time when the final file loop finishes
         if current_book_folder:
             print(f"\n[🏁] Reached end of series execution line on: {current_book_folder}")
             reconcile_book_boundary(client, TARGET_MODEL, QUARTZ_WORKSPACE_DIR, "characters")
