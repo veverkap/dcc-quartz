@@ -17,6 +17,24 @@ def setup_quartz_dirs(base_quartz_dir):
         os.makedirs(os.path.join(content_dir, subdir), exist_ok=True)
     return content_dir
 
+def save_extracted_entity(entity_title, categories, extracted_text):
+    """Saves raw AI-extracted entity data to a local JSON file for auditing."""
+    output_dir = "extracted_lore"
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Safe filesystem string naming
+    safe_name = re.sub(r'[\\/*?:"<>|]', "-", entity_title).strip()
+    file_path = os.path.join(output_dir, f"{safe_name}.json")
+    
+    entity_data = {
+        "title": entity_title,
+        "categories": categories,       # e.g., ["Characters", "Crawlers"]
+        "content": extracted_text.strip() # The raw facts/text extracted by the LLM
+    }
+    
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(entity_data, f, indent=2, ensure_ascii=False)    
+
 # --- 2. SAVE INDIVIDUAL GRAPH ENTITIES ---
 def save_entity_file(content_dir, entity_block):
     title_match = re.search(r'title:\s*(.+)$', entity_block, re.MULTILINE)
