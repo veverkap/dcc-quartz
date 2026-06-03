@@ -55,7 +55,11 @@ def extract_single_epub(epub_path, base_output_dir):
             
             # Simple regex clean to ensure a safe, standard filename string
             safe_title = re.sub(r'[^a-zA-Z0-9_\- ]', '', title_guess).strip().replace(' ', '_')
-            
+
+            # --- DEFENSIVE STRIP: CAP THE LENGTH TO PREVENT OS ERRORS ---
+            if len(safe_title) > 50:
+                safe_title = safe_title[:50].rstrip('_')            
+                
             # FIX #1: If it's frontmatter/meta text, keep its real title so extract_lore_graph handles it cleanly
             is_metadata_file = any(skip_word in safe_title.lower() for skip_word in ["title", "copyright", "toc", "intro", "preface", "dedication", "prologue"])
             
