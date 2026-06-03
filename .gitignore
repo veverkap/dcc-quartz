@@ -15,6 +15,8 @@ extracted_series_chapters/*
 !extracted_series_chapters/.gitkeep
 quartz-lore-vault/*
 !quartz-lore-vault/.gitkeep
+fandom_archive/*
+!fandom_archive/.gitkeep
 *.db
 *.db-shm
 *.db-wal

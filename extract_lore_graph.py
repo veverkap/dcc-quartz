@@ -25,19 +25,16 @@ def save_entity_file(content_dir, entity_block):
     if not title_match:
         return
         
-    entity_name = title_match.group(1).strip().replace('[', '').replace(']', '')
+    entity_name = title_match.group(1).strip().replace('[', '').replace(']', '').replace('"', '')
     # Clean up filename (remove special chars, swap spaces for underscores)
     cleaned_name = re.sub(r'[^a-zA-Z0-9_\- ]', '', entity_name).strip().replace(' ', '_').lower()
     
     # --- ENFORCE OPERATING SYSTEM FILENAME LIMITS ---
-    # Max filename on macOS/Linux is 255 characters. 
-    # We truncate the core name to 100 characters to keep it safe and readable, then append the extension.
     if len(cleaned_name) > 100:
         print(f"   [!] Warning: Extremely long title detected ('{entity_name[:30]}...'). Truncating filename.")
         cleaned_name = cleaned_name[:100].rstrip('_')
         
     safe_filename = cleaned_name + ".md"
-    # ------------------------------------------------
     
     type_match = re.search(r'type:\s*(.+)$', entity_block, re.MULTILINE)
     type_str = "mechanics"
@@ -59,13 +56,30 @@ def save_entity_file(content_dir, entity_block):
             
     final_path = os.path.join(content_dir, target_folder, safe_filename)
     
+    # --- DEFENSIVE FRONTMATTER ESCAPING ---
+    # Escape any existing double quotes in the title text, then wrap the entire frontmatter string 
+    # to safeguard against unquoted colons (e.g., "title: Dungeon Crawler World: Earth")
+    safe_title_yaml = entity_name.replace('"', '\\"')
+    
+    # Strip whatever loose frontmatter the LLM returned, and rebuild a pristine, sanitized frontmatter block
+    clean_body_only = re.sub(r'---.*?---', '', entity_block, flags=re.DOTALL).strip()
+    
+    sanitized_entity_block = (
+        f"---\n"
+        f"title: \"{safe_title_yaml}\"\n"
+        f"type: {target_folder.capitalize().rstrip('s')}\n"
+        f"tags: [dcc-lore-graph]\n"
+        f"---\n"
+        f"# {entity_name}\n\n"
+        f"{clean_body_only}"
+    )
+    
     if os.path.exists(final_path):
         with open(final_path, 'a', encoding='utf-8') as f:
-            clean_block = re.sub(r'---.*?---', '', entity_block, flags=re.DOTALL).strip()
-            f.write(f"\n\n## Additional Observations\n{clean_block}")
+            f.write(f"\n\n## Additional Observations\n{clean_body_only}")
     else:
         with open(final_path, 'w', encoding='utf-8') as f:
-            f.write(entity_block.strip())
+            f.write(sanitized_entity_block.strip())
             
     print(f"   [+] Synced: {target_folder}/{safe_filename}")
 
@@ -73,10 +87,27 @@ def save_entity_file(content_dir, entity_block):
 def process_chapter_text(client, model_id, chapter_text, content_dir):
     system_prompt = """
     You are an expert graph lore analyst specialized in processing the LitRPG book series 'Dungeon Crawler Carl'.
-    Analyze the provided chapter text and extract all notable Entities (Characters, Items, Spells, Locations, Factions).
+    Analyze the provided chapter text and extract ONLY notable entities that match the following structural taxonomy.
     
-    For EVERY entity found, you must output a completely standalone Markdown documentation block wrapped inside a '---ENTITY_START---' and '---ENTITY_END---' delimiter.
+    CRITICAL: You are strictly restricted to assigning one of these five exact strings to the 'type' field. Do not invent sub-types or variations:
+    1. Character (Use for Crawlers, NPCs, Deities, Gods, Hunters, Mobs, and named beasts)
+    2. Item (Use for Weapons, Equipment, Spells, Potions, Scrolls, and Artifacts)
+    3. Faction (Use for Guilds, Syndicates, Corporations, Alliances, and Sponsor groups)
+    4. Location (Use for Floors, Rooms, Zones, Castles, and specific geometric settings)
+    5. Mechanic (Use ONLY for active System Announcements, Achievements, and explicit Dungeon Rules)
+    
+    For EVERY entity found, output a completely standalone Markdown documentation block wrapped inside a '---ENTITY_START---' and '---ENTITY_END---' delimiter.
     Matches must strictly use standard internal markdown wiki-links `[[Entity Name]]` for graph connectivity.
+    
+    Example Schema output:
+    ---ENTITY_START---
+    title: "Entity Name"
+    type: Character
+    tags: [dcc-lore-graph]
+    ---
+    # Entity Name
+    Contextual description...
+    ---ENTITY_END---
     """
     response = client.chat.completions.create(
         model=model_id,
@@ -175,7 +206,7 @@ def main():
     )
     TARGET_MODEL = "gpt-5-mini"
     CHAPTERS_SRC_DIR = "./extracted_series_chapters"
-    QUARTZ_WORKSPACE_DIR = "./quartz-lore-vault"
+    QUARTZ_WORKSPACE_DIR = "/Users/veverkap/Code/personal/dcc-lore"
     LEDGER_FILE_PATH = os.path.join(CHAPTERS_SRC_DIR, ".processed_chapters.json")
     
     content_dir = setup_quartz_dirs(QUARTZ_WORKSPACE_DIR)
