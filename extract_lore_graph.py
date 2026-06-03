@@ -251,6 +251,7 @@ def main():
         for file_path in chapter_files:
             file_id = os.path.relpath(file_path, CHAPTERS_SRC_DIR)
             filename_lower = os.path.basename(file_path).lower()
+            print(f"[*] Evaluating: {file_id}")  # Debugging output to trace file processing
             
             path_parts = file_id.split(os.sep)
             book_folder = path_parts[0] if len(path_parts) > 1 else None
@@ -278,6 +279,7 @@ def main():
             content_peek = chapter_content[:600].lower()
             meta_indicators = ["all rights reserved", "edited by", "cover illustration", "copyright ©", "published by", "patreon", "thanks to all of my readers"]
             if any(indicator in content_peek for indicator in meta_indicators):
+                print(f"[-] Skipping metadata content file: {os.path.basename(file_path)}") 
                 processed_files.add(file_id)
                 continue
                 
