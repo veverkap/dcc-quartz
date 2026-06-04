@@ -31,6 +31,10 @@ def save_extracted_entity(entity_title, categories, extracted_text):
         "categories": categories,       # e.g., ["Characters", "Crawlers"]
         "content": extracted_text.strip() # The raw facts/text extracted by the LLM
     }
+
+    if len(file_path) > 255:
+        print(f"   [!] Warning: Filename too long for OS limits ('{file_path[:30]}...'). Truncating.")
+        file_path = os.path.join(output_dir, f"{safe_name[:200]}.json")
     
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(entity_data, f, indent=2, ensure_ascii=False)    
@@ -164,6 +168,7 @@ def reconcile_book_boundary(client, model_id, base_quartz_dir, folder_name="char
     You are a data deduplication utility. You will be given a list of filenames representing lore entities from 'Dungeon Crawler Carl'.
     Identify which names represent the EXACT same entity. Select the most accurate name as the 'canonical' name.
     Output strictly a JSON object mapping duplicate aliases to their single canonical name. Include ONLY items with duplicates.
+    Near duplicates that are likely the same entity but with minor naming variations should be included. Do not include unique entities.
     """
     response = client.chat.completions.create(
         model=model_id,
@@ -261,6 +266,9 @@ def main():
                 print(f"\n[🏁] Reached edge boundary for: {current_book_folder}")
                 reconcile_book_boundary(client, TARGET_MODEL, QUARTZ_WORKSPACE_DIR, "characters")
                 reconcile_book_boundary(client, TARGET_MODEL, QUARTZ_WORKSPACE_DIR, "items")
+                reconcile_book_boundary(client, TARGET_MODEL, QUARTZ_WORKSPACE_DIR, "factions")
+                reconcile_book_boundary(client, TARGET_MODEL, QUARTZ_WORKSPACE_DIR, "locations")
+                reconcile_book_boundary(client, TARGET_MODEL, QUARTZ_WORKSPACE_DIR, "mechanics")
             
             current_book_folder = book_folder
             
